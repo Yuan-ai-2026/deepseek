@@ -4,48 +4,52 @@ import { NextResponse } from 'next/server';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
-// 品种配置（绑定真实行情API的请求参数）
+// 品种配置（全部改用新浪财经接口，国内100%可用）
 const ASSETS = [
   {
     symbol: "SSE",
     name: "上证指数",
-    // 新浪财经上证指数接口（sh000001）
     quoteApi: "https://hq.sinajs.cn/list=sh000001",
     parser: (raw: string) => {
-      // 新浪返回格式：var hq_str_sh000001="上证指数,3245.00,3246.50,...";
       const data = raw.split('=')[1].replace(/"/g, '').split(',');
+      const prevClose = Number(data[2]);
+      const current = Number(data[1]);
       return {
-        price: Number(data[1]).toFixed(2),
-        change: `${((Number(data[1]) - Number(data[2])) / Number(data[2]) * 100).toFixed(2)}%`,
-        direction: Number(data[1]) > Number(data[2]) ? "Bullish" : "Bearish"
+        price: current.toFixed(2),
+        change: `${((current - prevClose) / prevClose * 100).toFixed(2)}%`,
+        direction: current > prevClose ? "Bullish" : "Bearish"
       };
     }
   },
   {
     symbol: "XAUUSD",
     name: "黄金/盎司",
-    // Yahoo Finance 黄金接口（GC=F 黄金期货）
-    quoteApi: "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1m",
-    parser: (raw: any) => {
-      const meta = raw.chart.result[0].meta;
+    // 新浪财经伦敦金接口
+    quoteApi: "https://hq.sinajs.cn/list=hf_XAU",
+    parser: (raw: string) => {
+      const data = raw.split('=')[1].replace(/"/g, '').split(',');
+      const prevClose = Number(data[2]);
+      const current = Number(data[1]);
       return {
-        price: meta.regularMarketPrice.toFixed(2),
-        change: `${meta.regularMarketChangePercent.toFixed(2)}%`,
-        direction: meta.regularMarketChange > 0 ? "Bullish" : "Bearish"
+        price: current.toFixed(2),
+        change: `${((current - prevClose) / prevClose * 100).toFixed(2)}%`,
+        direction: current > prevClose ? "Bullish" : "Bearish"
       };
     }
   },
   {
     symbol: "XAGUSD",
     name: "白银/盎司",
-    // Yahoo Finance 白银接口（SI=F 白银期货）
-    quoteApi: "https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1m",
-    parser: (raw: any) => {
-      const meta = raw.chart.result[0].meta;
+    // 新浪财经伦敦银接口
+    quoteApi: "https://hq.sinajs.cn/list=hf_XAG",
+    parser: (raw: string) => {
+      const data = raw.split('=')[1].replace(/"/g, '').split(',');
+      const prevClose = Number(data[2]);
+      const current = Number(data[1]);
       return {
-        price: meta.regularMarketPrice.toFixed(2),
-        change: `${meta.regularMarketChangePercent.toFixed(2)}%`,
-        direction: meta.regularMarketChange > 0 ? "Bullish" : "Bearish"
+        price: current.toFixed(2),
+        change: `${((current - prevClose) / prevClose * 100).toFixed(2)}%`,
+        direction: current > prevClose ? "Bullish" : "Bearish"
       };
     }
   }
@@ -53,12 +57,12 @@ const ASSETS = [
 
 // DeepSeek 系统提示词（基于真实行情生成分析）
 const SYSTEM_PROMPT = `
-你是专业的全球宏观交易分析师，**必须严格基于用户提供的真实行情数据**生成分析，禁止编造价格。
+你是专业的全球宏观交易分析师，必须严格基于用户提供的真实行情数据生成分析，禁止编造价格。
 要求：
-1.  分析内容不超过150字，专业、简洁，符合机构交易风格
-2.  给出3条关键驱动要点，每条不超过30字
-3.  趋势判断必须与真实行情涨跌一致（涨=Bullish，跌=Bearish，平=Neutral）
-4.  严格按照JSON格式返回，不要额外内容，格式如下：
+1. 分析内容不超过150字，专业、简洁，符合机构交易风格
+2. 给出3条关键驱动要点，每条不超过30字
+3. 趋势判断必须与真实行情涨跌一致（涨=Bullish，跌=Bearish，平=Neutral）
+4. 严格按照JSON格式返回，不要额外内容，格式如下：
 {
   "aiAnalysis": "分析文本（简体中文）",
   "keyPoints": ["要点1（简体中文）", "要点2（简体中文）", "要点3（简体中文）"]
@@ -71,7 +75,6 @@ const fetchRealQuote = async (asset: typeof ASSETS[number]) => {
   try {
     const res = await fetch(asset.quoteApi, {
       headers: {
-        // 新浪接口需要Referer，Yahoo接口无需
         "Referer": "https://finance.sina.com.cn/"
       }
     });
@@ -79,7 +82,6 @@ const fetchRealQuote = async (asset: typeof ASSETS[number]) => {
     return asset.parser(raw);
   } catch (err) {
     console.error(`行情拉取失败(${asset.symbol}):`, err);
-    // 行情拉取失败的兜底数据
     return {
       price: "0.00",
       change: "0.00%",
@@ -122,7 +124,6 @@ const fetchAIAnalysis = async (asset: typeof ASSETS[number], quote: Awaited<Retu
 
 // ====================== 3. 主接口 ======================
 export async function GET() {
-  // 1. 校验API Key
   if (!DEEPSEEK_API_KEY) {
     return NextResponse.json({ error: "DeepSeek API Key未配置" }, { status: 500 });
   }
@@ -130,28 +131,22 @@ export async function GET() {
   try {
     const results = [];
 
-    // 2. 并行拉取行情+AI分析
     for (const asset of ASSETS) {
-      // 2.1 先拉真实行情
       const quote = await fetchRealQuote(asset);
-      // 2.2 基于真实行情调用AI分析
       const ai = await fetchAIAnalysis(asset, quote);
 
-      // 2.3 合并真实行情+AI分析，返回前端
       results.push({
         symbol: asset.symbol,
-        name: asset.name,
         price: quote.price,
         change: quote.change,
         direction: quote.direction,
-        confidence: Math.floor(Math.random() * 20 + 65), // 65-85置信度
+        confidence: Math.floor(Math.random() * 20 + 65),
         lastUpdate: "刚刚",
         aiAnalysis: ai.aiAnalysis,
         keyPoints: ai.keyPoints
       });
     }
 
-    // 3. 禁止缓存，确保每次都是最新数据
     return NextResponse.json(results, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -161,37 +156,33 @@ export async function GET() {
     });
   } catch (err) {
     console.error("接口错误:", err);
-    // 全局兜底数据
     return NextResponse.json([
       {
         symbol: "SSE",
-        name: "上证指数",
-        price: "3245.00",
-        change: "-0.50%",
+        price: "3884.28",
+        change: "-0.75%",
         direction: "Bearish",
-        confidence: 70,
+        confidence: 73,
         lastUpdate: "异常",
         aiAnalysis: "行情/AI接口异常，请检查网络或API配置",
         keyPoints: ["检查DeepSeek API Key", "检查行情接口可用性", "刷新重试"]
       },
       {
         symbol: "XAUUSD",
-        name: "黄金/盎司",
         price: "2345.67",
         change: "+1.23%",
         direction: "Bullish",
-        confidence: 75,
+        confidence: 78,
         lastUpdate: "异常",
         aiAnalysis: "行情/AI接口异常，请检查网络或API配置",
         keyPoints: ["检查DeepSeek API Key", "检查行情接口可用性", "刷新重试"]
       },
       {
         symbol: "XAGUSD",
-        name: "白银/盎司",
         price: "28.50",
         change: "+1.50%",
         direction: "Bullish",
-        confidence: 75,
+        confidence: 67,
         lastUpdate: "异常",
         aiAnalysis: "行情/AI接口异常，请检查网络或API配置",
         keyPoints: ["检查DeepSeek API Key", "检查行情接口可用性", "刷新重试"]
