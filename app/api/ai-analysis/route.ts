@@ -58,7 +58,19 @@ export async function GET() {
         continue;
       }
 
-      const data = await response.json();
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (e) {
+          parsed = {
+            price: "0.00",
+            change: "0.00%",
+            direction: "Neutral",
+            confidence: 50,
+            aiAnalysis: "AI 返回格式异常",
+            keyPoints: ["请稍后重试"]
+          };
+        }
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
