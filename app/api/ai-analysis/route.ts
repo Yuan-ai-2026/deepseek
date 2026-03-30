@@ -58,6 +58,24 @@ export async function GET() {
         continue;
       }
 
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        
+        if (!content) {
+          results.push({
+            symbol: asset.symbol,
+            price: "0.00",
+            change: "0.00%",
+            direction: "Neutral",
+            confidence: 50,
+            lastUpdate: "异常",
+            aiAnalysis: "API 返回空",
+            keyPoints: ["稍后重试"]
+          });
+          continue;
+        }
+        
+        // 解析 JSON（带容错，不会崩溃）
         let parsed;
         try {
           parsed = JSON.parse(content);
@@ -71,17 +89,13 @@ export async function GET() {
             keyPoints: ["请稍后重试"]
           };
         }
-      const content = data.choices?.[0]?.message?.content;
-
-      if (!content) {
-        results.push({ symbol: asset.symbol, price: "0.00", change: "0.00%", direction: "Neutral", confidence: 50, aiAnalysis: "API 返回空", keyPoints: ["稍后重试"] });
-        continue;
-      }
-
-      const parsed = JSON.parse(content);
-      results.push({ ...parsed, symbol: asset.symbol, lastUpdate: "刚刚" });
-    }
-
+        
+        results.push({
+          ...parsed,
+          symbol: asset.symbol,
+          lastUpdate: "刚刚"
+        });
+      
     return NextResponse.json(results);
   } catch (error) {
     console.error("Server Error:", error);
