@@ -13,6 +13,13 @@ type AssetData = {
   keyPoints: string[];
 };
 
+// 1. 先在文件顶部（数据类型定义之后），添加品种中文映射
+const assetNameMap: Record<string, string> = {
+  'SSE': '上证指数',
+  'XAUUSD': '黄金',
+  'XAGUSD': '白银'
+};
+
 // 中文配置
 const directionMap: Record<string, string> = {
   'Bullish': '看涨',
@@ -160,7 +167,8 @@ export default function Dashboard() {
               >
                 {/* 品种头部 */}
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold">{asset.symbol}</h2>
+                  <h2 className="text-2xl font-bold">
+                    {assetNameMap[asset.symbol] || asset.symbol} <span className="text-lg text-gray-400 ml-2">{asset.price}</span></h2>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm ${getDirectionColor(asset.direction)}`}>
                       {asset.change}
