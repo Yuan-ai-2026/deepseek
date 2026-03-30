@@ -147,11 +147,13 @@ export async function GET() {
       });
     }
 
+    // ✅ 这里我帮你加了【彻底禁止缓存】
     return NextResponse.json(results, {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
-        "Expires": "0"
+        "Expires": "0",
+        "Surrogate-Control": "no-store"
       }
     });
   } catch (err) {
