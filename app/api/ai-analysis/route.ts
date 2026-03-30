@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-
+// 💡 加上这一行，彻底解决 Vercel 和 Next.js 的路由强缓存
+export const dynamic = 'force-dynamic';
 // ====================== 1. 配置 ======================
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
@@ -73,7 +74,11 @@ const SYSTEM_PROMPT = `
 // 拉取真实行情
 const fetchRealQuote = async (asset: typeof ASSETS[number]) => {
   try {
-    const res = await fetch(asset.quoteApi, {
+    // 💡 1. 加上时间戳防止新浪 CDN 缓存
+    const url = `${asset.quoteApi}&_t=${Date.now()}`;
+    
+    const res = await fetch(url, {
+      cache: 'no-store', // 💡 2. 告诉 Next.js 绝对不要缓存这次 fetch
       headers: {
         "Referer": "https://finance.sina.com.cn/"
       }
@@ -102,6 +107,7 @@ const fetchAIAnalysis = async (asset: typeof ASSETS[number], quote: Awaited<Retu
 
   const res = await fetch(DEEPSEEK_API_URL, {
     method: "POST",
+    cache: 'no-store', // 💡 加上这一行
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
