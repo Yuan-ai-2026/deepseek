@@ -9,5 +9,6 @@
 }
 
 body {
-  @apply bg-gray-900 text-white;
+  background-color: #111827; /* 对应 bg-gray-900 */
+  color: #ffffff; /* 对应 text-white */
 }
