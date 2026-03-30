@@ -122,29 +122,29 @@ export default function Dashboard() {
       <div className="flex">
         <aside className="w-64 bg-gray-800/50 h-screen p-6 border-r border-gray-700">
           <h1 className="text-2xl font-bold text-emerald-400 mb-8">HybridTrader</h1>
-          <nav className="space-y-4">
+           <nav className="space-y-4">
             <a href="#" className="flex items-center gap-3 text-emerald-400 font-medium">
-              <span>Dashboard</span>
+              <span>仪表盘</span>
             </a>
             <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-white transition">
-              <span>Reports</span>
+              <span>报告</span>
             </a>
             <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-white transition">
-              <span>Calendar</span>
+              <span>日历</span>
             </a>
             <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-white transition">
-              <span>Macro Desk</span>
+              <span>宏观分析</span>
             </a>
             <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-white transition">
-              <span>Psychology</span>
+              <span>交易心理</span>
             </a>
             <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-white transition">
-              <span>Journal</span>
+              <span>交易日志</span>
             </a>
             <div className="pt-8 border-t border-gray-700">
               <a href="#" className="flex items-center gap-3 text-gray-400 hover:text-white transition">
-                <span>Community</span>
-                <span className="text-xs bg-gray-700 px-2 py-1 rounded">Soon</span>
+                <span>社区</span>
+                <span className="text-xs bg-gray-700 px-2 py-1 rounded">即将上线</span>
               </a>
             </div>
           </nav>
