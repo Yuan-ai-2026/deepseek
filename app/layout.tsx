@@ -1,9 +1,9 @@
-import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'AI仪表盘',
-  description: 'AI-powered trading analysis dashboard',
+  title: "AI 交易仪表盘",
+  description: "由 DeepSeek 驱动的专业 AI 交易分析平台",
 };
 
 export default function RootLayout({
