@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
-// 只保留 3 个品种
 const assets = [
   { symbol: "SSE", name: "上证指数" },
   { symbol: "XAUUSD", name: "黄金/盎司" },
@@ -58,45 +57,46 @@ export async function GET() {
         continue;
       }
 
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-        
-        if (!content) {
-          results.push({
-            symbol: asset.symbol,
-            price: "0.00",
-            change: "0.00%",
-            direction: "Neutral",
-            confidence: 50,
-            lastUpdate: "异常",
-            aiAnalysis: "API 返回空",
-            keyPoints: ["稍后重试"]
-          });
-          continue;
-        }
-        
-        // 解析 JSON（带容错，不会崩溃）
-        let parsed;
-        try {
-          parsed = JSON.parse(content);
-        } catch (e) {
-          parsed = {
-            price: "0.00",
-            change: "0.00%",
-            direction: "Neutral",
-            confidence: 50,
-            aiAnalysis: "AI 返回格式异常",
-            keyPoints: ["请稍后重试"]
-          };
-        }
-        
-        results.push({
-          ...parsed,
-          symbol: asset.symbol,
-          lastUpdate: "刚刚"
-        });
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
       
+      if (!content) {
+        results.push({
+          symbol: asset.symbol,
+          price: "0.00",
+          change: "0.00%",
+          direction: "Neutral",
+          confidence: 50,
+          lastUpdate: "异常",
+          aiAnalysis: "API 返回空",
+          keyPoints: ["稍后重试"]
+        });
+        continue;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(content);
+      } catch (e) {
+        parsed = {
+          price: "0.00",
+          change: "0.00%",
+          direction: "Neutral",
+          confidence: 50,
+          aiAnalysis: "AI 返回格式异常",
+          keyPoints: ["请稍后重试"]
+        };
+      }
+
+      results.push({
+        ...parsed,
+        symbol: asset.symbol,
+        lastUpdate: "刚刚"
+      });
+    }
+
     return NextResponse.json(results);
+
   } catch (error) {
     console.error("Server Error:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
