@@ -3,121 +3,55 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const ASSETS = [
-  {
-    symbol: "SSE",
-    name: "上证指数",
-    quoteApi: "https://hq.sinajs.cn/list=sh000001",
-    parser: (raw: string) => {
-      // 1. 使用正则精准提取引号内的字符串，防止变量名干扰
-      const match = raw.match(/"([^"]+)"/);
-      if (!match) return null;
-      
-      const data = match[1].split(',');
-      // A股格式：Index 3 是当前点数, Index 2 是昨收点数
-      const current = parseFloat(data[3]);
-      const prevClose = parseFloat(data[2]);
-      
-      if (isNaN(current) || isNaN(prevClose) || prevClose === 0) return null;
-
-      return {
-        price: current.toFixed(2),
-        change: `${(((current - prevClose) / prevClose) * 100).toFixed(2)}%`,
-        direction: current >= prevClose ? "Bullish" : "Bearish"
-      };
-    }
-  },
-  {
-    symbol: "XAUUSD",
-    name: "黄金",
-    // 新浪伦敦金接口
-    quoteApi: "https://hq.sinajs.cn/list=hf_XAU",
-    parser: (raw: string) => {
-      const match = raw.match(/"([^"]+)"/);
-      if (!match) return null;
-      
-      const data = match[1].split(',');
-      // 国际现货格式：Index 0 是当前价, Index 1 是涨跌幅百分比, Index 7 是昨收
-      const current = parseFloat(data[0]);
-      const changePercent = parseFloat(data[1]);
-
-      if (isNaN(current)) return null;
-
-      return {
-        price: current.toFixed(2),
-        change: `${changePercent.toFixed(2)}%`,
-        direction: changePercent >= 0 ? "Bullish" : "Bearish"
-      };
-    }
-  },
-  {
-    symbol: "XAGUSD",
-    name: "白银",
-    // 新浪伦敦银接口
-    quoteApi: "https://hq.sinajs.cn/list=hf_XAG",
-    parser: (raw: string) => {
-      const match = raw.match(/"([^"]+)"/);
-      if (!match) return null;
-      
-      const data = match[1].split(',');
-      const current = parseFloat(data[0]);
-      const changePercent = parseFloat(data[1]);
-
-      if (isNaN(current)) return null;
-
-      return {
-        price: current.toFixed(2),
-        change: `${changePercent.toFixed(2)}%`,
-        direction: changePercent >= 0 ? "Bullish" : "Bearish"
-      };
-    }
-  }
+  { symbol: "SSE", name: "上证指数", url: "https://hq.sinajs.cn/list=sh000001" },
+  { symbol: "XAUUSD", name: "黄金", url: "https://hq.sinajs.cn/list=hf_XAU" },
+  { symbol: "XAGUSD", name: "白银", url: "https://hq.sinajs.cn/list=hf_XAG" }
 ];
 
 export async function GET() {
   try {
     const results = [];
-    
     for (const asset of ASSETS) {
-      // 添加时间戳 _t 彻底粉碎缓存
-      const url = `${asset.quoteApi}&_t=${Date.now()}`;
-      
-      const res = await fetch(url, {
+      const res = await fetch(`${asset.url}&_t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 
+        headers: {
           "Referer": "https://finance.sina.com.cn/",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
       });
+      const text = await res.text();
+      const content = text.match(/"([^"]+)"/)?.[1];
+      
+      if (!content) {
+        results.push({ symbol: asset.symbol, name: asset.name, price: "接口维护", change: "0.00%", direction: "Neutral" });
+        continue;
+      }
 
-      const raw = await res.text();
-      const quote = asset.parser(raw);
-
-      if (quote) {
+      const d = content.split(',');
+      if (asset.symbol === "SSE") {
+        const cur = parseFloat(d[3]);
+        const pre = parseFloat(d[2]);
         results.push({
           symbol: asset.symbol,
           name: asset.name,
-          ...quote
+          price: cur.toFixed(2),
+          change: `${(((cur - pre) / pre) * 100).toFixed(2)}%`,
+          direction: cur >= pre ? "Bullish" : "Bearish"
         });
       } else {
-        // 容错处理：解析失败时返回占位符而非 NaN
+        const cur = parseFloat(d[0]);
+        const chg = parseFloat(d[1]);
         results.push({
           symbol: asset.symbol,
           name: asset.name,
-          price: "---",
-          change: "0.00%",
-          direction: "Neutral"
+          price: cur.toFixed(2),
+          change: `${chg.toFixed(2)}%`,
+          direction: chg >= 0 ? "Bullish" : "Bearish"
         });
       }
     }
-
-    return NextResponse.json(results, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache"
-      }
-    });
-  } catch (err) {
-    console.error("行情接口严重错误:", err);
-    return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
+    return NextResponse.json(results);
+  } catch (e) {
+    return NextResponse.json({ error: "failed" }, { status: 500 });
   }
 }
