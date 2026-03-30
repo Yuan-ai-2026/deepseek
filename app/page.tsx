@@ -55,7 +55,12 @@ export default function Dashboard() {
     setLoading(true);
     setApiError(false);
     try {
-      const res = await fetch('/api/ai-analysis');
+      // ✅ 只改了这一行：强制无缓存 + 时间戳
+      const res = await fetch(`/api/ai-analysis?t=${Date.now()}`, {
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      });
+
       if (!res.ok) throw new Error('网络错误');
       const result = await res.json();
       
@@ -111,7 +116,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 300000); // 5分钟刷新
+    // ✅ 只改了这一行：从 5分钟 改为 30秒 自动刷新
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
